@@ -1,0 +1,6 @@
+name = weixin
+description = 微信订阅号
+core = 7.x
+dependencies[] = search
+
+configure = admin/config/services/weixin

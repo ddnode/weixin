@@ -1,0 +1,154 @@
+<?php
+/**
+ * @file 微信公众平台开发者模式
+ */
+
+/**
+ * Implements hook_permission().
+ */
+function weixin_permission() {
+  return array(
+    'administer weixin' => array(
+      'title' => '管理微信',
+      'description' => '微信公众平台配置权限',
+    ),
+  );
+}
+
+/**
+ * Implements hook_menu().
+ */
+function weixin_menu() {
+  $items = array();
+  $items['weixin'] = array(
+    'title' => '微信API',
+    'page callback' => 'weixin_api_callback',
+    'access callback' => TRUE,
+  );
+  $items['admin/config/services/weixin'] = array(
+    'title' => '微信',
+    'description' => '配置微信公众平台',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('weixin_info_setting'),
+    'access arguments' => array('administer weixin'),
+    'file' => 'weixin.inc',
+  );
+  return $items;
+}
+
+/**
+ * 微信回调页面
+ */
+function weixin_api_callback() {
+  $query = drupal_get_query_parameters();
+  if (checkSignature($query)) {
+    //首次调用验证成为开发者
+    if (isset($query['echostr'])) {
+      echo $query['echostr'];
+      exit;
+    }
+    //回应信息
+    responseMsg();
+  }
+}
+
+/**
+ * 验证信息来自微信
+ */
+function checkSignature($query) {
+  $signature = $query['signature'];
+  $timestamp = $query['timestamp'];
+  $nonce = $query['nonce'];
+
+  $token = variable_get('weixin_token');
+  $tmpArr = array($token, $timestamp, $nonce);
+  sort($tmpArr, SORT_STRING);
+  $tmpStr = implode( $tmpArr );
+  $tmpStr = sha1( $tmpStr );
+
+  if ($tmpStr == $signature) {
+    return true;
+  }
+  else {
+    return false;
+  }
+}
+
+/**
+ * 回应信息
+ */
+function responseMsg() {
+//获取post数据，xml
+$postStr = $GLOBALS["HTTP_RAW_POST_DATA"];
+
+//处理数据
+if (!empty($postStr)){
+  $postObj = simplexml_load_string($postStr, 'SimpleXMLElement', LIBXML_NOCDATA);
+  $fromUsername = $postObj->FromUserName;
+  $toUsername = $postObj->ToUserName;
+  $getMsgType = $postObj->MsgType;
+  $time = time();
+  $msgType = 'text';
+  $textTpl = "<xml>
+    <ToUserName><![CDATA[%s]]></ToUserName>
+    <FromUserName><![CDATA[%s]]></FromUserName>
+    <CreateTime>%s</CreateTime>
+    <MsgType><![CDATA[%s]]></MsgType>
+    <Content><![CDATA[%s]]></Content>
+    </xml>";
+
+  switch ($getMsgType) {
+    case 'text':
+      $keyword = trim($postObj->Content);
+      $contentStr = weixin_get_content($keyword);
+      break;
+
+    case 'event':
+      if ($postObj->Event == 'subscribe') {
+        $contentStr = variable_get('weixin_greeting');
+      }
+      else {
+        print '';
+        exit;
+      }
+      break;
+
+    default:
+      $contentStr = variable_get('weixin_noindentify');
+      break;
+  }
+  $resultStr = sprintf($textTpl, $fromUsername, $toUsername, $time, $msgType, $contentStr);
+  print $resultStr;
+}
+else {
+    print '';
+    exit;
+  }
+}
+
+/**
+ * 根据关键字搜索内容
+ */
+function weixin_get_content($keyword) {
+  //默认搜索node
+  $search_type = 'node';
+  $results = module_invoke('search', 'data', $keyword, $search_type);
+
+  $results_node =  array();
+  if (count($results['#results']) > 0) {
+    foreach ($results['#results'] as $result) {
+      $results_node[] = $result['node'];
+    }
+  }
+
+  if (count($results_node) > 0) {
+    $output = "搜索结果如下：\n\n";
+    foreach ($results_node as $index => $node) {
+      $output .= $index+1 . '. ' . l($node->title, url('node/' . $node->nid, array('absolute' => TRUE))) . "\n";
+    }
+  }
+  else {
+    $output = variable_get('weixin_noresult');
+  }
+  return $output;
+}
