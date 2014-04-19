@@ -89,18 +89,23 @@ if (!empty($postStr)){
   $getMsgType = $postObj->MsgType;
   $time = time();
   $msgType = 'text';
-  $textTpl = "<xml>
+  $textTpl = '<xml>
     <ToUserName><![CDATA[%s]]></ToUserName>
     <FromUserName><![CDATA[%s]]></FromUserName>
     <CreateTime>%s</CreateTime>
     <MsgType><![CDATA[%s]]></MsgType>
     <Content><![CDATA[%s]]></Content>
-    </xml>";
+    </xml>';
 
   switch ($getMsgType) {
     case 'text':
-      $keyword = trim($postObj->Content);
-      $contentStr = weixin_get_content($keyword);
+      $keyword = $postObj->Content;
+      $contentStr = weixin_get_content($keyword, $msgType, $textTpl);
+      break;
+
+    case 'voice':
+      $keyword = $postObj->Recognition;
+      $contentStr = weixin_get_content($keyword, $msgType, $textTpl);
       break;
 
     case 'event':
@@ -129,23 +134,31 @@ else {
 /**
  * 根据关键字搜索内容
  */
-function weixin_get_content($keyword) {
+function weixin_get_content($keyword, &$msgType, &$textTpl) {
   //默认搜索node
   $search_type = 'node';
   $results = module_invoke('search', 'data', $keyword, $search_type);
-
-  $results_node =  array();
-  if (count($results['#results']) > 0) {
+  $count_results = count($results['#results']);
+  if ($count_results > 0) {
+    $msgType = 'news';
+    $textTpl = '<xml>
+      <ToUserName><![CDATA[%s]]></ToUserName>
+      <FromUserName><![CDATA[%s]]></FromUserName>
+      <CreateTime>%s</CreateTime>
+      <MsgType><![CDATA[%s]]></MsgType>
+      %s
+      </xml>';
+    $output = '<ArticleCount>' . $count_results . '</ArticleCount>';
+    $output .= '<Articles>';
+    //只放标题和链接 最多10条记录
+    $itemTpl = '<item>
+      <Title><![CDATA[%s]]></Title>
+      <Url><![CDATA[%s]]></Url>
+      </item>';
     foreach ($results['#results'] as $result) {
-      $results_node[] = $result['node'];
+      $output .= sprintf($itemTpl, $result['title'], $result['link']);
     }
-  }
-
-  if (count($results_node) > 0) {
-    $output = "搜索结果如下：\n\n";
-    foreach ($results_node as $index => $node) {
-      $output .= $index+1 . '. ' . l($node->title, url('node/' . $node->nid, array('absolute' => TRUE))) . "\n";
-    }
+    $output .= '</Articles>';
   }
   else {
     $output = variable_get('weixin_noresult');
