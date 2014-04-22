@@ -139,6 +139,11 @@ function weixin_get_content($keyword, &$msgType, &$textTpl) {
   $search_type = 'node';
 
   $select_types = variable_get('weixin_node_types', array());
+  foreach ($select_types as $key => $value) {
+    if ($value == '0') {
+      unset($select_types[$key]);
+    }
+  }
   $types_string = count($select_types) > 0 ? ' type:' . implode(',', $select_types) : '';
 
   $results = module_invoke('search', 'data', $keyword . $types_string, $search_type);
