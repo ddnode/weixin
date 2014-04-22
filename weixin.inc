@@ -27,6 +27,13 @@ function weixin_info_setting() {
     '#description' => '比如用户输入消息为语音或图片时',
     '#default_value' => variable_get('weixin_noindentify'),
   );
+  $form['weixin_node_types'] = array(
+    '#type' => 'checkboxes',
+    '#title' => '要搜索的内容类型',
+    '#description' => '没有特殊选择，默认搜索全部内容类型',
+    '#options' => node_type_get_names(),
+    '#default_value' => variable_get('weixin_node_types', array()),
+  );
 
   return system_settings_form($form);
 }

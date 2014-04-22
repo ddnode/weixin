@@ -137,7 +137,11 @@ else {
 function weixin_get_content($keyword, &$msgType, &$textTpl) {
   //默认搜索node
   $search_type = 'node';
-  $results = module_invoke('search', 'data', $keyword, $search_type);
+
+  $select_types = variable_get('weixin_node_types', array());
+  $types_string = count($select_types) > 0 ? ' type:' . implode(',', $select_types) : '';
+
+  $results = module_invoke('search', 'data', $keyword . $types_string, $search_type);
   $count_results = count($results['#results']);
   if ($count_results > 0) {
     $msgType = 'news';

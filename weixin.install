@@ -12,4 +12,5 @@ function weixin_uninstall() {
   variable_del('weixin_greeting');
   variable_del('weixin_noresult');
   variable_del('weixin_noindentify');
+  variable_del('weixin_node_types');
 }
